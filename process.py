@@ -9,8 +9,8 @@ def DecodeQuery(fileName):
     query_list = []
     for item in data:
         item = item.lower()
-        # if len(item) > 50 or len(item) < 5:
-        #     continue        
+        if len(item) > 50 or len(item) < 5:
+             continue        
         h = HTMLParser()
         item = h.unescape(item)
         item = parse.unquote(item)
