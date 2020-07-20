@@ -1,0 +1,138 @@
+import numpy as np
+import joblib
+from sklearn.svm import SVC
+from sklearn.ensemble import RandomForestClassifier
+from sklearn.tree import DecisionTreeClassifier
+from sklearn.ensemble import RandomForestClassifier
+from sklearn.ensemble import AdaBoostClassifier
+from sklearn.ensemble import ExtraTreesClassifier
+from sklearn.ensemble import GradientBoostingClassifier
+from sklearn.tree import DecisionTreeClassifier
+from sklearn.model_selection import KFold
+from sklearn.neighbors import KNeighborsClassifier
+from sklearn.svm import SVC
+from xgboost import XGBClassifier
+from sklearn.model_selection import learning_curve
+import matplotlib.pyplot as plt
+def train(X_train,Y_train,X_test):
+    ntrain = X_train.shape[0]
+    ntest = X_test.shape[0]
+    SEED = 0 # 保证再现性
+    NFOLDS = 10 # 采用十折交叉验证
+    kf = KFold(n_splits = NFOLDS, random_state=SEED, shuffle=False)
+
+    #准备第一层的模型
+    rf = RandomForestClassifier(n_estimators=500, warm_start=True, max_features='sqrt',max_depth=6, 
+                            min_samples_split=3, min_samples_leaf=2, n_jobs=-1, verbose=0)
+    ada = AdaBoostClassifier(n_estimators=500, learning_rate=0.1)
+    et = ExtraTreesClassifier(n_estimators=500, n_jobs=-1, max_depth=8, min_samples_leaf=2, verbose=0)
+    gb = GradientBoostingClassifier(n_estimators=500, learning_rate=0.008, min_samples_split=3, min_samples_leaf=2, max_depth=5, verbose=0)
+    dt = DecisionTreeClassifier(max_depth=8)
+    knn = KNeighborsClassifier(n_neighbors = 2)
+    svm = SVC(kernel='linear', C=0.025)
+
+    # numpy 转arrays:
+    x_train = np.array(X_train)
+    x_test = np.array(X_test)
+    y_train =np.array(Y_train)
+
+   # 采用十折交叉验证的模型第一层，除了train之外，我们还需要将test传入，并将其预测结果在第二层做进一步预测
+    rf_oof_train, rf_oof_test = get_out_fold("rf",rf, x_train, y_train, x_test,ntrain,ntest,NFOLDS,kf) # Random Forest
+    ada_oof_train, ada_oof_test = get_out_fold("ada",ada, x_train, y_train, x_test,ntrain,ntest,NFOLDS,kf) # AdaBoost 
+    et_oof_train, et_oof_test = get_out_fold("et",et, x_train, y_train, x_test,ntrain,ntest,NFOLDS,kf) # Extra Trees
+    gb_oof_train, gb_oof_test = get_out_fold("gb",gb, x_train, y_train, x_test,ntrain,ntest,NFOLDS,kf) # Gradient Boost
+    dt_oof_train, dt_oof_test = get_out_fold("dt",dt, x_train, y_train, x_test,ntrain,ntest,NFOLDS,kf) # Decision Tree
+    knn_oof_train, knn_oof_test = get_out_fold("knn",knn, x_train, y_train, x_test,ntrain,ntest,NFOLDS,kf) # KNeighbors
+    svm_oof_train, svm_oof_test = get_out_fold("svm",svm, x_train, y_train, x_test,ntrain,ntest,NFOLDS,kf) # Support Vector
+
+    #我们利用XGBoost，使用第一层预测十折交叉验证中的验证集预测结果rf_oof_train等作为特征对最终的结果进行预测
+    x_train = np.concatenate((rf_oof_train, ada_oof_train, et_oof_train, gb_oof_train, dt_oof_train, knn_oof_train, svm_oof_train), axis=1)
+    x_test = np.concatenate((rf_oof_test, ada_oof_test, et_oof_test, gb_oof_test, dt_oof_test, knn_oof_test, svm_oof_test), axis=1)
+
+    gbm = XGBClassifier( n_estimators= 2000, max_depth= 4, min_child_weight= 2, gamma=0.9, subsample=0.8, 
+                     colsample_bytree=0.8, objective= 'binary:logistic', nthread= -1, scale_pos_weight=1).fit(x_train, y_train)
+    joblib.dump(gbm,"model/gbm.json")
+    gbm=joblib.load("model/gbm.json")
+
+    #观察不同的学习曲线
+    # RandomForest
+    rf_parameters = {'n_jobs': -1, 'n_estimators': 500, 'warm_start': True, 'max_depth': 6, 'min_samples_leaf': 2, 
+                'max_features' : 'sqrt','verbose': 0}
+    # AdaBoost
+    ada_parameters = {'n_estimators':500, 'learning_rate':0.1}
+    # ExtraTrees
+    et_parameters = {'n_jobs': -1, 'n_estimators':500, 'max_depth': 8, 'min_samples_leaf': 2, 'verbose': 0}
+    # GradientBoosting
+    gb_parameters = {'n_estimators': 500, 'max_depth': 5, 'min_samples_leaf': 2, 'verbose': 0}
+    # DecisionTree
+    dt_parameters = {'max_depth':8}
+    # KNeighbors
+    knn_parameters = {'n_neighbors':2}
+    # SVM
+    svm_parameters = {'kernel':'linear', 'C':0.025}
+    # XGB
+    gbm_parameters = {'n_estimators': 2000, 'max_depth': 4, 'min_child_weight': 2, 'gamma':0.9, 'subsample':0.8, 
+                'colsample_bytree':0.8, 'objective': 'binary:logistic', 'nthread':-1, 'scale_pos_weight':1}
+    title = "Learning Curves"
+    plot_learning_curve(RandomForestClassifier(**rf_parameters), title, x_train, y_train, cv=None,  n_jobs=4, train_sizes=[50,200])
+    plt.show()
+
+    return gbm,x_test
+#十折交叉验证
+def get_out_fold(clf_name,clf, x_train, y_train, x_test,ntrain,ntest,NFOLDS,kf):
+    oof_train = np.zeros((ntrain,))
+    oof_test = np.zeros((ntest,))
+    oof_test_skf = np.empty((NFOLDS, ntest))
+
+    for i, (train_index, test_index) in enumerate(kf.split(x_train)):
+        x_tr = x_train[train_index]
+        y_tr = y_train[train_index]
+        x_te = x_train[test_index] #验证集，用于评估模型性能
+
+        #用train_index对应的数据数据训练模型
+        clf.fit(x_tr, y_tr)
+
+        filename="model/"+clf_name+str(clf_name)+".json"
+        joblib.dump(clf,filename)
+        clf=joblib.load(filename)
+
+        #用test_index对应的数据数据进行验证
+        oof_train[test_index] = clf.predict(x_te) 
+        dts = len(np.where(oof_train[test_index] == y_train[test_index])[0])/ len(y_train[test_index])
+        print("{} 精度:{:.5f} ".format(clf_name+str(clf_name), dts * 100))
+             
+        #测试集的推断结果用于第二层模型的训练                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            
+        oof_test_skf[i, :] = clf.predict(x_test)
+
+    oof_test[:] = oof_test_skf.mean(axis=0)
+    return oof_train.reshape(-1, 1), oof_test.reshape(-1, 1)
+
+#学习曲线绘制
+def plot_learning_curve(estimator, title, X, y, ylim=None, cv=None,
+                        n_jobs=1, train_sizes=np.linspace(.1, 1.0, 5), verbose=0): #绘制学习曲线 
+    plt.figure()
+    plt.title(title)
+    if ylim is not None:
+        plt.ylim(*ylim)
+    plt.xlabel("Training examples")
+    plt.ylabel("Score")
+    train_sizes, train_scores, test_scores = learning_curve(
+        estimator, X, y, cv=cv, n_jobs=n_jobs, train_sizes=train_sizes)
+    train_scores_mean = np.mean(train_scores, axis=1)
+    train_scores_std = np.std(train_scores, axis=1)
+    test_scores_mean = np.mean(test_scores, axis=1)
+    test_scores_std = np.std(test_scores, axis=1)
+    plt.grid()
+
+    plt.fill_between(train_sizes, train_scores_mean - train_scores_std,
+                     train_scores_mean + train_scores_std, alpha=0.1,
+                     color="r")
+    plt.fill_between(train_sizes, test_scores_mean - test_scores_std,
+                     test_scores_mean + test_scores_std, alpha=0.1, color="g")
+    plt.plot(train_sizes, train_scores_mean, 'o-', color="r",
+             label="Training score")
+    plt.plot(train_sizes, test_scores_mean, 'o-', color="g",
+             label="Cross-validation score")
+
+    plt.legend(loc="best")
+    return plt
