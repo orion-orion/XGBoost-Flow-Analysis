@@ -10,7 +10,7 @@ from sklearn.tree import DecisionTreeClassifier
 from sklearn import model_selection
 import numpy as np
 def get_top_n_features(train_X, train_Y, top_n_features):
-    '''    
+    '''  
     # random forest
     rf_est = RandomForestClassifier(random_state=0)
     rf_param_grid = {'n_estimators': [500], 'min_samples_split': [2, 3], 'max_depth': [20]}
@@ -30,14 +30,14 @@ def get_top_n_features(train_X, train_Y, top_n_features):
     et_grid = model_selection.GridSearchCV(et_est, et_param_grid, n_jobs=-1, cv=10, verbose=1)
     et_grid.fit(train_X, train_Y)
     joblib.dump(et_grid,'model/et_grid.json')
-    '''
+   
     # GradientBoosting
     gb_est =GradientBoostingClassifier(random_state=0)
     gb_param_grid = {'n_estimators': [500], 'learning_rate': [0.01, 0.1], 'max_depth': [20]}
     gb_grid = model_selection.GridSearchCV(gb_est, gb_param_grid, n_jobs=-1, cv=10, verbose=1)
     gb_grid.fit(train_X, train_Y)
     joblib.dump(gb_grid,'model/gb_grid.json')
-    '''
+    
     # DecisionTree
     dt_est = DecisionTreeClassifier(random_state=0)
     dt_param_grid = {'min_samples_split': [2, 4], 'max_depth': [20]}
@@ -70,7 +70,7 @@ def get_top_n_features(train_X, train_Y, top_n_features):
                                           'importance': dt_grid.best_estimator_.feature_importances_}).sort_values('importance', ascending=False)
     features_top_n_dt = feature_imp_sorted_dt.head(top_n_features)['feature']
     # 将多个模型选择出的top n 的特征融合并去重
-    features_top_n = pd.concat([features_top_n_rf,features_top_n_ada,features_top_n_et,features_top_n_dt], 
+    features_top_n = pd.concat([features_top_n_rf,features_top_n_ada,features_top_n_et,features_top_n_gb,features_top_n_dt], 
                                ignore_index=True).drop_duplicates().reset_index(drop=True)
-    features_importance = pd.concat([feature_imp_sorted_rf,feature_imp_sorted_ada,feature_imp_sorted_et,feature_imp_sorted_dt],ignore_index=True)
+    features_importance = pd.concat([feature_imp_sorted_rf,feature_imp_sorted_ada,feature_imp_sorted_et,feature_imp_sorted_gb,feature_imp_sorted_dt],ignore_index=True)
     return list(features_top_n)

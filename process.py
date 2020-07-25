@@ -22,16 +22,16 @@ def DecodeQuery(fileName):
 def readFile():
     #读取训练集数据
     vectorizer =TfidfVectorizer(ngram_range=(1,3))
-    bX1_d = DecodeQuery('./data/网络攻击2.txt')
-    bX2_d = DecodeQuery('./data/恶意软件2.txt')
-    gX_d = DecodeQuery('./data/goodx2.txt')
+    bX1_d = DecodeQuery('./data/网络攻击.txt')
+    bX2_d = DecodeQuery('./data/恶意软件.txt')
+    gX_d = DecodeQuery('./data/业务流量.txt')
     X_train=vectorizer.fit_transform(bX1_d+bX2_d+gX_d).todense()
     Y_train=np.array([0]*len(gX_d)+[1]*len(bX1_d)+[2]*len(bX2_d)).reshape(-1,1) #正常请求标签为0  网络攻击流量标签为1 恶意软件流量标签为2
     train=np.concatenate((X_train,Y_train),axis=1)
     np.random.shuffle(train)
     X_train=train[:,:-1]
     #读取测试集数据
-    X_test_d=DecodeQuery('./data/testx.txt')
+    X_test_d=DecodeQuery('./data/test.txt')
     X_test =vectorizer.transform(X_test_d).todense()
     return pd.DataFrame(X_train),Y_train.ravel(),pd.DataFrame(X_test)
   
