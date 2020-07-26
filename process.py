@@ -4,6 +4,8 @@ from html.parser import HTMLParser
 import re
 from urllib import parse
 import numpy as np
+import pymysql
+import os
 def DecodeQuery(fileName):
     data = [x.strip() for x in open(fileName, "r").readlines()]
     query_list = []
@@ -19,7 +21,7 @@ def DecodeQuery(fileName):
         query_list.append(item)
     return list(set(query_list))   
 
-def readFile():
+def readFile(db):
     #读取训练集数据
     vectorizer =TfidfVectorizer(ngram_range=(1,3))
     bX1_d = DecodeQuery('./data/网络攻击.txt')
@@ -31,7 +33,11 @@ def readFile():
     np.random.shuffle(train)
     X_train=train[:,:-1]
     #读取测试集数据
-    X_test_d=DecodeQuery('./data/test.txt')
+    os.system("rm /var/lib/mysql-files/testx.csv")
+    cursor=db.cursor()
+    cursor.execute('use EP2')
+    cursor.execute(r'''SELECT * FROM url INTO OUTFILE '/var/lib/mysql-files/testx.csv' FIELDS TERMINATED BY ',' ENCLOSED BY '"' LINES TERMINATED BY '\r\n' ''')
+    X_test_d=DecodeQuery('/var/lib/mysql-files/testx.csv')
     X_test =vectorizer.transform(X_test_d).todense()
     return pd.DataFrame(X_train),Y_train.ravel(),pd.DataFrame(X_test)
   

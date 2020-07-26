@@ -50,9 +50,9 @@ def train(X_train,Y_train,X_test):
     #我们利用XGBoost，使用第一层预测七折交叉验证中的验证集预测结果rf_oof_train等作为特征对最终的结果进行预测
     x_train = np.concatenate((rf_oof_trainy_hat,ada_oof_trainy_hat,et_oof_trainy_hat,gb_oof_trainy_hat,dt_oof_trainy_hat,knn_oof_trainy_hat,svm_oof_trainy_hat), axis=1)
     x_test = np.concatenate((rf_oof_testy_hat,ada_oof_testy_hat,et_oof_testy_hat,gb_oof_testy_hat,dt_oof_testy_hat,knn_oof_testy_hat,svm_oof_testy_hat), axis=1)
-    gbm = XGBClassifier( n_estimators= 2000, max_depth= 4, min_child_weight= 2, gamma=0.9, subsample=0.8,learning_rate=0.01, 
-                     colsample_bytree=0.8, objective= 'multi:softmax class=3', nthread= -1).fit(x_train, y_train.ravel())
-    joblib.dump(gbm,"model/gbm.json")
+    #gbm = XGBClassifier( n_estimators= 2000, max_depth= 4, min_child_weight= 2, gamma=0.9, subsample=0.8,learning_rate=0.01, 
+    #                 colsample_bytree=0.8, objective= 'multi:softmax class=3', nthread= -1).fit(x_train, y_train.ravel())
+    #joblib.dump(gbm,"model/gbm.json")
     gbm=joblib.load("model/gbm.json")
     
     '''
@@ -92,10 +92,10 @@ def get_out_fold(clf_name,clf, x_train, y_train, x_test,ntrain,ntest,NFOLDS,kf):
         x_valid = x_train[valid_index] #验证集，用于评估模型性能
         y_valid = y_train[valid_index]
         #用train_index对应的数据数据训练模型
-        clf.fit(x_tr, y_tr.ravel())
+        #clf.fit(x_tr, y_tr.ravel())
 
         filename="model/"+clf_name+str(i)+".json"
-        joblib.dump(clf,filename)
+        #joblib.dump(clf,filename)
         clf=joblib.load(filename)
 
         #用valid_index对应的数据数据进行验证
