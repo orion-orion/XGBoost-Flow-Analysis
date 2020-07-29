@@ -1,85 +1,112 @@
 from __future__ import division
 import numpy as np
 import joblib
-from sklearn.svm import SVC
-from sklearn.ensemble import RandomForestClassifier
-from sklearn.tree import DecisionTreeClassifier
-from sklearn.ensemble import RandomForestClassifier
-from sklearn.ensemble import AdaBoostClassifier
-from sklearn.ensemble import ExtraTreesClassifier
-from sklearn.ensemble import GradientBoostingClassifier
-from sklearn.tree import DecisionTreeClassifier
 from sklearn.model_selection import KFold
-from sklearn.neighbors import KNeighborsClassifier
-from sklearn.svm import SVC
 from xgboost import XGBClassifier
-from sklearn.model_selection import learning_curve
+import xgboost as xgb
 import matplotlib.pyplot as plt
-def train(X_train,Y_train,X_test):
-    ntrain = X_train.shape[0]
-    ntest = X_test.shape[0]
-    SEED = 10 # 
-    NFOLDS = 10 # 采用十折交叉验证
-    kf = KFold(n_splits = NFOLDS, random_state=SEED, shuffle=True)
+from sklearn import model_selection
+from sklearn.metrics import accuracy_score
+def train(X_train_sparse,Y_train,X_valid_sparse,Y_valid,X_test_sparse):
+    #准备Stacking第一层的模型
+    #我们利用XGBoost，使用Stacking第一层中的验证集预测结果Y_valid_pred作为特征对最终的结果进行预测
+    Y_valid_pred1,Y_valid1,Y_test_pred1=xgb_base(1,X_train_sparse,Y_train,X_valid_sparse,Y_valid,X_test_sparse)
+    Y_valid_pred2,Y_valid2,Y_test_pred2=xgb_base(2,X_train_sparse,Y_train,X_valid_sparse,Y_valid,X_test_sparse)
+    Y_valid_pred3,Y_valid3,Y_test_pred3=xgb_base(3,X_train_sparse,Y_train,X_valid_sparse,Y_valid,X_test_sparse)
+    Y_valid_pred4,Y_valid4,Y_test_pred4=xgb_base(4,X_train_sparse,Y_train,X_valid_sparse,Y_valid,X_test_sparse)
+    X_train = np.concatenate((Y_valid_pred1,Y_valid_pred2,Y_valid_pred3,Y_valid_pred4), axis=1)
+    Y_train = np.concatenate((Y_valid1,Y_valid2,Y_valid3,Y_valid4), axis=1)
+    X_test = np.concatenate((Y_test_pred1,Y_test_pred2,Y_test_pred3,Y_test_pred4), axis=1)
 
-    #准备第一层的模型
-    rf = RandomForestClassifier(n_estimators=500, warm_start=True, max_features='sqrt',max_depth=6, 
-                            min_samples_split=3, min_samples_leaf=2, n_jobs=-1, verbose=0)
-    ada = AdaBoostClassifier(n_estimators=500, learning_rate=0.1)
-    et = ExtraTreesClassifier(n_estimators=500, n_jobs=-1, max_depth=8, min_samples_leaf=2, verbose=0)
-    gb = GradientBoostingClassifier(n_estimators=500, learning_rate=0.008, min_samples_split=3, min_samples_leaf=2, max_depth=5, verbose=0)
-    dt = DecisionTreeClassifier(max_depth=8)
-    knn = KNeighborsClassifier(n_neighbors = 10)
-    svm = SVC(kernel='linear', C=0.025)
-
-    # numpy 转arrays:
-    x_train = np.array(X_train)
-    x_test = np.array(X_test)
-    y_train =Y_train
-
-   # 采用七折交叉验证的模型第一层，除了train之外，我们还需要将test传入，并将其预测结果在第二层做进一步预测
-   
-    rf_oof_trainy_hat, rf_oof_testy_hat = get_out_fold("rf",rf, x_train, y_train, x_test,ntrain,ntest,NFOLDS,kf) # Random Forest
-    ada_oof_trainy_hat,ada_oof_testy_hat = get_out_fold("ada",ada, x_train, y_train, x_test,ntrain,ntest,NFOLDS,kf) # AdaBoost 
-    et_oof_trainy_hat,et_oof_testy_hat = get_out_fold("et",et, x_train, y_train, x_test,ntrain,ntest,NFOLDS,kf) # Extra Trees
-    gb_oof_trainy_hat,gb_oof_testy_hat = get_out_fold("gb",gb, x_train, y_train, x_test,ntrain,ntest,NFOLDS,kf) # Gradient Boost
-    dt_oof_trainy_hat,dt_oof_testy_hat = get_out_fold("dt",dt, x_train, y_train, x_test,ntrain,ntest,NFOLDS,kf) # Decision Tree
-    knn_oof_trainy_hat,knn_oof_testy_hat = get_out_fold("knn",knn, x_train, y_train, x_test,ntrain,ntest,NFOLDS,kf) # KNeighbors
-    svm_oof_trainy_hat,svm_oof_testy_hat = get_out_fold("svm",svm, x_train, y_train, x_test,ntrain,ntest,NFOLDS,kf) # Support Vector
-
-    #我们利用XGBoost，使用第一层预测七折交叉验证中的验证集预测结果rf_oof_train等作为特征对最终的结果进行预测
-    x_train = np.concatenate((rf_oof_trainy_hat,ada_oof_trainy_hat,et_oof_trainy_hat,gb_oof_trainy_hat,dt_oof_trainy_hat,knn_oof_trainy_hat,svm_oof_trainy_hat), axis=1)
-    x_test = np.concatenate((rf_oof_testy_hat,ada_oof_testy_hat,et_oof_testy_hat,gb_oof_testy_hat,dt_oof_testy_hat,knn_oof_testy_hat,svm_oof_testy_hat), axis=1)
-    #gbm = XGBClassifier( n_estimators= 2000, max_depth= 4, min_child_weight= 2, gamma=0.9, subsample=0.8,learning_rate=0.01, 
-    #                 colsample_bytree=0.8, objective= 'multi:softmax class=3', nthread= -1).fit(x_train, y_train.ravel())
-    #joblib.dump(gbm,"model/gbm.json")
-    gbm=joblib.load("model/gbm.json")
+    '''  
+    params={
+    'booster':'gbtree',
+    #这里分类数字是0-3，是一个多类的问题，因此采用了multisoft多分类器，
+    'objective': 'multi:softmax', 
+    'num_class':3, # 类数，与 multisoftmax 并用
+    'gamma':0.05,  # 在树的叶子节点下一个分区的最小损失，越大算法模型越保守 。[0:]
+    #'max_depth':12, # 构建树的深度 [1:]
+    #'lambda':450,  # L2 正则项权重
+    'subsample':0.4, # 采样训练数据，设置为0.5，随机选择一般的数据实例 (0:1]
+    'colsample_bytree':0.7, # 构建树树时的采样比率 (0:1]
+    #'min_child_weight':12, # 节点的最少特征数
+    'eta': 0.005, # 如同学习率
+    'seed':710,
+    'nthread':4,# cpu 线程数,根据自己U的个数适当调整
+    } 
+    plst=list(params.items())
+    num_rounds = 500 # 迭代你次数
     
+    #划分训练集与验证集
+    xgtrain = xgb.DMatrix(X_train_sparse, Y_train,missing=0)
+    xgval = xgb.DMatrix(X_valid_sparse,Y_valid,missing=0)
+   
+    #在训练中动态显示训练和验证的错误率
+    watchlist = [(xgtrain, 'train'),(xgval, 'val')]
+    
+    #开始训练
+    cls = xgb.train(plst, xgtrain, num_rounds,watchlist,early_stopping_rounds=100)
+
+    
+    joblib.dump(cls,'model/xgb_base_1.json')
+    cls=joblib.load('model/xgb_base_1.json')
+
+   
+    #用验证集验证最后结果
+    Y_valid_pred = cls.predict(xgb.DMatrix(X_valid_sparse))
+    predictions = [round(value) for value in Y_valid_pred]
+    accuracy = accuracy_score(Y_valid, predictions)
+    print("Accuracy: %.2f%%" % (accuracy * 100.0))
     '''
-    #观察不同的学习曲线
-    # RandomForest
-    rf_parameters = {'n_jobs': -1, 'n_estimators': 500, 'warm_start': True, 'max_depth': 6, 'min_samples_leaf': 2, 
-                'max_features' : 'sqrt','verbose': 0}
-    # AdaBoost
-    ada_parameters = {'n_estimators':500, 'learning_rate':0.1}
-    # ExtraTrees
-    et_parameters = {'n_jobs': -1, 'n_estimators':500, 'max_depth': 8, 'min_samples_leaf': 2, 'verbose': 0}
-    # GradientBoosting
-    gb_parameters = {'n_estimators': 500, 'max_depth': 5, 'min_samples_leaf': 2, 'verbose': 0}
-    # DecisionTree
-    dt_parameters = {'max_depth':8}
-    # KNeighbors
-    knn_parameters = {'n_neighbors':2}
-    # SVM
-    svm_parameters = {'kernel':'linear', 'C':0.025}
-    # XGB
-    gbm_parameters = {'n_estimators': 2000, 'max_depth': 4, 'min_child_weight': 2, 'gamma':0.9, 'subsample':0.8, 
-                'colsample_bytree':0.8, 'objective': 'binary:logistic', 'nthread':-1, 'scale_pos_weight':1}
-i    title = "Learning Curves"
-    plot_learning_curve(RandomForestClassifier(**rf_parameters), title, x_train, y_train, cv=None,  n_jobs=4, train_sizes=[50,200])
-    plt.show()
-    '''
-    return gbm,x_train,x_test  #x_train后续验证用
+    #Stacking第二层，使用XGBoost分类器
+    cls = XGBClassifier( n_estimators= 10000, gamma=0.9, subsample=1,learning_rate=0.05, 
+                     colsample_bytree=0.6, objective= 'multi:softmaix class=3', nthread= -1).fit(X_train, Y_valid.ravel()) #2000,max_depth:4 lr:0.01 sub_sample=0.8 min_child_weight=2
+    joblib.dump(cls,"model/xgb.json")
+    cls=joblib.load("model/xgb.json")
+ 
+    return  cls,X_test
+def xgb_base(id,X_train_sparse,Y_train,X_valid_sparse,Y_valid,X_test_sparse):
+    params={
+    'booster':'gbtree',
+    #这里分类数字是0-3，是一个多类的问题，因此采用了multisoft多分类器，
+    'objective': 'multi:softmax',
+    'num_class':3, # 类数，与 multisoftmax 并用
+    'gamma':0.05,  # 在树的叶子节点下一个分区的最小损失，越大算法模型越保守 。[0:]
+    #'max_depth':12, # 构建树的深度 [1:]
+    #'lambda':450,  # L2 正则项权重
+    'subsample':0.4, # 采样训练数据，设置为0.5，随机选择一般的数据实例 (0:1]
+    'colsample_bytree':0.7, # 构建树树时的采样比率 (0:1]
+    #'min_child_weight':12, # 节点的最少特征数
+    'eta': 0.005, # 如同学习率
+    'seed':710,
+    'nthread':4,# cpu 线程数,根据自己U的个数适当调整
+    }
+    plst=list(params.items())
+    num_rounds = 500 # 迭代你次数
+
+    #划分训练集与验证集
+    xgtrain = xgb.DMatrix(X_train_sparse, Y_train,missing=0)
+    xgval = xgb.DMatrix(X_valid_sparse,Y_valid,missing=0)
+
+    #在训练中动态显示训练和验证的错误率
+    watchlist = [(xgtrain, 'train'),(xgval, 'val')]
+
+    #开始训练
+    cls = xgb.train(plst, xgtrain, num_rounds,watchlist,early_stopping_rounds=100)
+
+
+    joblib.dump(cls,'model/xgb_base_'+str(id)+'.json')
+    cls=joblib.load('model/xgb_base_'+str(id)+'.json')
+
+
+    #用验证集验证最后结果
+    Y_valid_pred = cls.predict(xgb.DMatrix(X_valid_sparse))
+    Y_test_pred = cls.predict(xgb.DMatrix(X_test_sparse))
+    predictions = [round(value) for value in Y_valid_pred]
+    accuracy = accuracy_score(Y_valid, predictions)
+    print("%d base_xgb: Accuracy: %.2f%%" % (id,accuracy * 100.0))
+    return Y_valid_pred.reshape(-1,1),Y_valid.reshape(-1,1),Y_test_pred.reshape(-1,1)
+'''
 #十折交叉验证
 def get_out_fold(clf_name,clf, x_train, y_train, x_test,ntrain,ntest,NFOLDS,kf):
     oof_trainy_hat=np.zeros((ntrain,1))
@@ -108,36 +135,7 @@ def get_out_fold(clf_name,clf, x_train, y_train, x_test,ntrain,ntest,NFOLDS,kf):
     dts=len([1 for y1,y2 in zip(oof_trainy_hat,y_train) if y1==y2])/len(y_train)
     dts_test=len([1 for y in oof_test_skf[i,:] if y==0])/len(oof_test_skf[i,:])
     print("{} k折验证集精度:{:.5f}".format(clf_name,dts*100))
-    print("{} 测试集精度:{:.5f}".format(clf_name,dts_test*100))
+    #print("{} 测试集精度:{:.5f}".format(clf_name,dts_test*100))
     oof_test[:] = oof_test_skf.mean(axis=0)#取所有次迭代的平均值
     return oof_trainy_hat.reshape(-1, 1), oof_test.reshape(-1, 1)
-
-#学习曲线绘制
-def plot_learning_curve(estimator, title, X, y, ylim=None, cv=None,
-                        n_jobs=1, train_sizes=np.linspace(.1, 1.0, 5), verbose=0): #绘制学习曲线 
-    plt.figure()
-    plt.title(title)
-    if ylim is not None:
-        plt.ylim(*ylim)
-    plt.xlabel("Training examples")
-    plt.ylabel("Score")
-    train_sizes, train_scores, test_scores = learning_curve(
-        estimator, X, y, cv=cv, n_jobs=n_jobs, train_sizes=train_sizes)
-    train_scores_mean = np.mean(train_scores, axis=1)
-    train_scores_std = np.std(train_scores, axis=1)
-    test_scores_mean = np.mean(test_scores, axis=1)
-    test_scores_std = np.std(test_scores, axis=1)
-    plt.grid()
-
-    plt.fill_between(train_sizes, train_scores_mean - train_scores_std,
-                     train_scores_mean + train_scores_std, alpha=0.1,
-                     color="r")
-    plt.fill_between(train_sizes, test_scores_mean - test_scores_std,
-                     test_scores_mean + test_scores_std, alpha=0.1, color="g")
-    plt.plot(train_sizes, train_scores_mean, 'o-', color="r",
-             label="Training score")
-    plt.plot(train_sizes, test_scores_mean, 'o-', color="g",
-             label="Cross-validation score")
-
-    plt.legend(loc="best")
-    return plt
+'''

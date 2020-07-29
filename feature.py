@@ -1,76 +1,107 @@
 import pandas as pd
 import joblib
-from sklearn.ensemble import RandomForestClassifier
-from sklearn.tree import DecisionTreeClassifier
-from sklearn.ensemble import RandomForestClassifier
-from sklearn.ensemble import AdaBoostClassifier
-from sklearn.ensemble import ExtraTreesClassifier
-from sklearn.ensemble import GradientBoostingClassifier
-from sklearn.tree import DecisionTreeClassifier
 from sklearn import model_selection
+from sklearn.decomposition import PCA
+from sklearn.preprocessing import StandardScaler
+from sklearn.preprocessing import MinMaxScaler
+from sklearn.feature_selection import SelectKBest
+from sklearn.preprocessing import Normalizer
+from sklearn.discriminant_analysis import LinearDiscriminantAnalysis
+from sklearn.feature_selection import VarianceThreshold
+from sklearn.feature_selection import chi2
+import xgboost as xgb
 import numpy as np
-def get_top_n_features(train_X, train_Y, top_n_features):
-    '''  
-    # random forest
-    rf_est = RandomForestClassifier(random_state=0)
-    rf_param_grid = {'n_estimators': [500], 'min_samples_split': [2, 3], 'max_depth': [20]}
-    rf_grid = model_selection.GridSearchCV(rf_est, rf_param_grid, n_jobs=-1, cv=10, verbose=1)
-    rf_grid.fit(train_X, train_Y)
-    joblib.dump(rf_grid,'model/rf_grid.json')
-    # AdaBoost
-    ada_est =AdaBoostClassifier(random_state=0)
-    ada_param_grid = {'n_estimators': [500], 'learning_rate': [0.01, 0.1]}
-    ada_grid = model_selection.GridSearchCV(ada_est, ada_param_grid, n_jobs=-1, cv=10, verbose=1)
-    ada_grid.fit(train_X, train_Y)
-    joblib.dump(ada_grid,'model/ada_grid.json')
-    
-    # ExtraTree
-    et_est = ExtraTreesClassifier(random_state=0)
-    et_param_grid = {'n_estimators': [500], 'min_samples_split': [3, 4], 'max_depth': [20]}
-    et_grid = model_selection.GridSearchCV(et_est, et_param_grid, n_jobs=-1, cv=10, verbose=1)
-    et_grid.fit(train_X, train_Y)
-    joblib.dump(et_grid,'model/et_grid.json')
-   
-    # GradientBoosting
-    gb_est =GradientBoostingClassifier(random_state=0)
-    gb_param_grid = {'n_estimators': [500], 'learning_rate': [0.01, 0.1], 'max_depth': [20]}
-    gb_grid = model_selection.GridSearchCV(gb_est, gb_param_grid, n_jobs=-1, cv=10, verbose=1)
-    gb_grid.fit(train_X, train_Y)
-    joblib.dump(gb_grid,'model/gb_grid.json')
-    
-    # DecisionTree
-    dt_est = DecisionTreeClassifier(random_state=0)
-    dt_param_grid = {'min_samples_split': [2, 4], 'max_depth': [20]}
-    dt_grid = model_selection.GridSearchCV(dt_est, dt_param_grid, n_jobs=-1, cv=10, verbose=1)
-    dt_grid.fit(train_X, train_Y)
-    joblib.dump(dt_grid,'model/dt_grid.json')
-    '''                
-    rf_grid=joblib.load('model/rf_grid.json')
-    ada_grid=joblib.load('model/ada_grid.json')
-    et_grid=joblib.load('model/et_grid.json')
-    gb_grid=joblib.load('model/gb_grid.json')
-    dt_grid=joblib.load('model/dt_grid.json')
-    feature_imp_sorted_rf = pd.DataFrame({'feature': list(train_X),
-                                          'importance': rf_grid.best_estimator_.feature_importances_}).sort_values('importance', ascending=False)
-    features_top_n_rf = feature_imp_sorted_rf.head(top_n_features)['feature']
+from numpy import sort
+from sklearn.feature_selection import SelectFromModel
+from scipy import sparse
+from xgboost import XGBClassifier
+from sklearn.model_selection import StratifiedKFold
+from sklearn.metrics import accuracy_score
+def feature_eng(X_train_sparse, Y_train, X_valid_sparse,Y_valid,X_test_sparse):
 
-    feature_imp_sorted_ada = pd.DataFrame({'feature': list(train_X),
-                                          'importance': ada_grid.best_estimator_.feature_importances_}).sort_values('importance', ascending=False)
-    features_top_n_ada = feature_imp_sorted_ada.head(top_n_features)['feature']
+    '''#Z-score标准化，统一量纲
+    ss=StandardScaler()
+    train_X=ss.fit_transform(train_X) 
+    test_X=ss.transform(test_X)
     
-    feature_imp_sorted_et = pd.DataFrame({'feature': list(train_X),
-                                          'importance': et_grid.best_estimator_.feature_importances_}).sort_values('importance', ascending=False)
-    features_top_n_et = feature_imp_sorted_et.head(top_n_features)['feature']
+    #数据归一化，归一到0-1区间，提高模型收敛速度      
+    ms=MinMaxScaler()
+    train_X=ms.fit_transform(train_X)
+    test_X=ms.transform(test_X) 
+
+    #Normalizer 基于矩阵的行将样本向量转换为单位向量
+    norm=Normalizer()
+    train_X=norm.fit_transform(train_X)
+    test_X=norm.transform(test_X)
+
+    #移除低方差特征i
+    sel = VarianceThreshold(threshold=(0.01))
+    train_X=sel.fit_transform(train_X)
+    test_X=sel.transform(test_X)
+    print(train_X.shape)
    
-    feature_imp_sorted_gb = pd.DataFrame({'feature': list(train_X),
-                                               'importance': gb_grid.best_estimator_.feature_importances_}).sort_values('importance', ascending=False)
-    features_top_n_gb = feature_imp_sorted_gb.head(top_n_features)['feature']
-  
-    feature_imp_sorted_dt = pd.DataFrame({'feature': list(train_X),
-                                          'importance': dt_grid.best_estimator_.feature_importances_}).sort_values('importance', ascending=False)
-    features_top_n_dt = feature_imp_sorted_dt.head(top_n_features)['feature']
-    # 将多个模型选择出的top n 的特征融合并去重
-    features_top_n = pd.concat([features_top_n_rf,features_top_n_ada,features_top_n_et,features_top_n_gb,features_top_n_dt], 
-                               ignore_index=True).drop_duplicates().reset_index(drop=True)
-    features_importance = pd.concat([feature_imp_sorted_rf,feature_imp_sorted_ada,feature_imp_sorted_et,feature_imp_sorted_gb,feature_imp_sorted_dt],ignore_index=True)
-    return list(features_top_n)
+    #卡方特征选择
+    sk=SelectKBest(chi2,k=1000)
+    train_X = sk.fit_transform(train_X,train_Y)
+    test_X = sk.transform(test_X)
+    print(train_X.shape)
+    
+    #PCA降维
+    pca=PCA(n_components=100)
+    train_X=pca.fit_transform(train_X)
+    test_X=pca.fit_transform(test_X)
+    
+    #LDA判别分析
+    lda = LinearDiscriminantAnalysis(n_components=10)
+    train_X=lda.fit_transform(train_X,train_Y)
+    test_X =lda.transform(test_X)
+
+    '''
+    # 初步训练模型，准备特征选择
+    xgb_est =XGBClassifier(random_state=0)
+    xgb_param_grid = {'n_estimators': [100],'gamma':[0.9],'subsample':[1],'learning_rate':[0.05],\
+    'colsample_bytree':[0.6],'objective':['multi:softmaix class=3']}
+    kfold = StratifiedKFold(n_splits=10, shuffle=True, random_state=7)
+    xgb_grid = model_selection.GridSearchCV(xgb_est, xgb_param_grid, cv=kfold,n_jobs=-1,verbose=1)
+    #xgb_grid.fit(X_train_sparse.todense()[:300], Y_train[:300])
+    #joblib.dump(xgb_grid,"model/feature_xgb_grid.json")
+    xgb_grid=joblib.load("model/feature_xgb_grid.json")
+    Y_valid_pred = xgb_grid.predict(X_valid_sparse.todense())
+    predictions = [round(value) for value in Y_valid_pred]
+    accuracy = accuracy_score(Y_valid, predictions)
+    print("Accuracy: %.2f%%" % (accuracy * 100.0))
+
+
+    
+    # Fit model using each importance as a threshold
+    thresholds = sort(xgb_grid.best_estimator_.feature_importances_)
+    thresholds=list(set(thresholds))
+    max_accuracy=-1
+    best_thresh=0
+    best_num_feature=0
+    for i,thresh in enumerate(thresholds):
+	# select features using threshold
+        selection = SelectFromModel(xgb_grid.best_estimator_, threshold=thresh, prefit=True)
+        X_train_selected = selection.transform(X_train_sparse.todense())
+        X_valid_selected = selection.transform(X_valid_sparse.todense())
+        s_xgb_est =XGBClassifier(random_state=0)
+        s_xgb_param_grid = {'n_estimators': [10],'gamma':[0.9],'subsample':[1],'learning_rate':[0.05],\
+        'colsample_bytree':[0.6],'objective':['multi:softmaix class=3']}
+        kfold = StratifiedKFold(n_splits=10, shuffle=True, random_state=7)
+        s_xgb_grid = model_selection.GridSearchCV(s_xgb_est, s_xgb_param_grid, cv=kfold,n_jobs=-1,verbose=1)
+        #s_xgb_grid.fit(X_train_selected[100:], Y_train[100:])
+        #joblib.dump(s_xgb_grid,"model/s_xgb"+str(i)+"_grid.json")
+        s_xgb_grid=joblib.load("model/s_xgb"+str(i)+"_grid.json")
+        Y_valid_pred = s_xgb_grid.predict(X_valid_selected)
+        predictions = [round(value) for value in Y_valid_pred]
+        accuracy = accuracy_score(Y_valid, predictions)
+        print("iter=%d,Thresh=%.3f, num_feature=%d, Accuracy: %.2f%%" % (i,thresh, X_train_selected.shape[1], accuracy*100.0))
+        if accuracy>max_accuracy:
+           max_accuracy=accuracy
+           best_thresh=thresh
+           best_num_feature=X_train_selected.shape[1]
+    print("best Thresh=%.3f, best_num_feature=%d, best_accuracy: %.2f%%" % (best_thresh,best_num_feature, max_accuracy*100.0))
+    selection = SelectFromModel(xgb_grid.best_estimator_, threshold=best_thresh, prefit=True)
+    X_train_sparse= sparse.csc_matrix(selection.transform(X_train_sparse.todense()))
+    X_valid_sparse= sparse.csc_matrix(selection.transform(X_valid_sparse.todense()))
+    X_test_sparse= sparse.csc_matrix(selection.transform(X_test_sparse.todense()))
