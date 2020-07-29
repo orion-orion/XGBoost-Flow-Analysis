@@ -1,14 +1,6 @@
 import pandas as pd
 import joblib
 from sklearn import model_selection
-from sklearn.decomposition import PCA
-from sklearn.preprocessing import StandardScaler
-from sklearn.preprocessing import MinMaxScaler
-from sklearn.feature_selection import SelectKBest
-from sklearn.preprocessing import Normalizer
-from sklearn.discriminant_analysis import LinearDiscriminantAnalysis
-from sklearn.feature_selection import VarianceThreshold
-from sklearn.feature_selection import chi2
 import xgboost as xgb
 import numpy as np
 from numpy import sort
@@ -18,45 +10,6 @@ from xgboost import XGBClassifier
 from sklearn.model_selection import StratifiedKFold
 from sklearn.metrics import accuracy_score
 def feature_eng(X_train_sparse, Y_train, X_valid_sparse,Y_valid,X_test_sparse):
-
-    '''#Z-score标准化，统一量纲
-    ss=StandardScaler()
-    train_X=ss.fit_transform(train_X) 
-    test_X=ss.transform(test_X)
-    
-    #数据归一化，归一到0-1区间，提高模型收敛速度      
-    ms=MinMaxScaler()
-    train_X=ms.fit_transform(train_X)
-    test_X=ms.transform(test_X) 
-
-    #Normalizer 基于矩阵的行将样本向量转换为单位向量
-    norm=Normalizer()
-    train_X=norm.fit_transform(train_X)
-    test_X=norm.transform(test_X)
-
-    #移除低方差特征i
-    sel = VarianceThreshold(threshold=(0.01))
-    train_X=sel.fit_transform(train_X)
-    test_X=sel.transform(test_X)
-    print(train_X.shape)
-   
-    #卡方特征选择
-    sk=SelectKBest(chi2,k=1000)
-    train_X = sk.fit_transform(train_X,train_Y)
-    test_X = sk.transform(test_X)
-    print(train_X.shape)
-    
-    #PCA降维
-    pca=PCA(n_components=100)
-    train_X=pca.fit_transform(train_X)
-    test_X=pca.fit_transform(test_X)
-    
-    #LDA判别分析
-    lda = LinearDiscriminantAnalysis(n_components=10)
-    train_X=lda.fit_transform(train_X,train_Y)
-    test_X =lda.transform(test_X)
-
-    '''
     # 初步训练模型，准备特征选择
     xgb_est =XGBClassifier(random_state=0)
     xgb_param_grid = {'n_estimators': [100],'gamma':[0.9],'subsample':[1],'learning_rate':[0.05],\
@@ -70,10 +23,8 @@ def feature_eng(X_train_sparse, Y_train, X_valid_sparse,Y_valid,X_test_sparse):
     predictions = [round(value) for value in Y_valid_pred]
     accuracy = accuracy_score(Y_valid, predictions)
     print("Accuracy: %.2f%%" % (accuracy * 100.0))
-
-
-    
-    # Fit model using each importance as a threshold
+ 
+    #依据不同的阈值选取特征并训练模型
     thresholds = sort(xgb_grid.best_estimator_.feature_importances_)
     thresholds=list(set(thresholds))
     max_accuracy=-1

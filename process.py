@@ -27,9 +27,9 @@ def DecodeQuery(fileName):
 def readFile(db):
     #读取训练集数据
     vectorizer =TfidfVectorizer(ngram_range=(1,3))
-    bX1_d = DecodeQuery('./data/网络攻击.txt')
-    bX2_d = DecodeQuery('./data/恶意软件.txt')
-    gX_d = DecodeQuery('./data/业务流量.txt')
+    bX1_d = DecodeQuery('./data/网络攻击.csv')
+    bX2_d = DecodeQuery('./data/恶意软件.csv')
+    gX_d = DecodeQuery('./data/业务流量.csv')
     X=vectorizer.fit_transform(bX1_d+bX2_d+gX_d).todense()
     Y=np.array([1]*len(bX1_d)+[2]*len(bX2_d)+[0]*len(gX_d)).reshape(-1,1) #正常请求标签为0  网络攻击流量标签为1 恶意软件流量标签为2
     comXY=np.concatenate((X,Y),axis=1)
@@ -41,12 +41,16 @@ def readFile(db):
     X_valid_sparse=sparse.csc_matrix(X_valid)
     
     #读取测试集数据
-    #os.system("rm /var/lib/mysql-files/testx.csv")
-    #cursor=db.cursor()
-    #cursor.execute('use EP2')
-    #cursor.execute(r'''SELECT * FROM url INTO OUTFILE '/var/lib/mysql-files/testx.csv' FIELDS TERMINATED BY ',' ENCLOSED BY '"' LINES TERMINATED BY '\r\n' ''')
-    X_test_d=DecodeQuery('/var/lib/mysql-files/testx.csv')
+    os.system("rm /var/lib/mysql-files/testx.csv")
+    cursor=db.cursor()
+    cursor.execute('use EP2')
+    cursor.execute(r'''SELECT * FROM url INTO OUTFILE '/var/lib/mysql-files/testx.csv' FIELDS TERMINATED BY ',' ENCLOSED BY '"' LINES TERMINATED BY '\r\n' ''')
+    test_d=pd.read_csv('/var/lib/mysql-files/testx.csv')
+    url=test_d['url']
+    time=test_d['time'].tolist()
+    url.to_csv('data/测试流量.csv')
+    X_test_d=DecodeQuery('data/测试流量.csv')
     X_test_sparse =vectorizer.transform(X_test_d)
     Y_train=np.array(Y_train.tolist()).flatten()
     Y_valid=np.array(Y_valid.tolist()).flatten()
-    return X_train_sparse,Y_train,X_valid_sparse,Y_valid,X_test_sparse
+    return X_train_sparse,Y_train,X_valid_sparse,Y_valid,X_test_sparse,time
