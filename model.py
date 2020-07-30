@@ -63,8 +63,8 @@ def xgb_base(id,X_train_sparse,Y_train,X_valid_sparse,Y_valid,X_test_sparse):
     Y_valid_pred = cls.predict(xgb.DMatrix(X_valid_sparse))
     Y_test_pred = cls.predict(xgb.DMatrix(X_test_sparse))
     predictions = [round(value) for value in Y_valid_pred]
-    accuracy = accuracy_score(Y_valid, predictions)
-    print("%d base_xgb: Accuracy: %.2f%%" % (id,accuracy * 100.0))
+    #accuracy = accuracy_score(Y_valid, predictions)
+    #print("%d base_xgb: Accuracy: %.2f%%" % (id,accuracy * 100.0))
     return Y_valid_pred.reshape(-1,1),Y_valid.reshape(-1,1),Y_test_pred.reshape(-1,1)
 '''
 #十折交叉验证

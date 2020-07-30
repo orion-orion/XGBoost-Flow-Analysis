@@ -22,7 +22,7 @@ def feature_eng(X_train_sparse, Y_train, X_valid_sparse,Y_valid,X_test_sparse):
     Y_valid_pred = xgb_grid.predict(X_valid_sparse.todense())
     predictions = [round(value) for value in Y_valid_pred]
     accuracy = accuracy_score(Y_valid, predictions)
-    print("Accuracy: %.2f%%" % (accuracy * 100.0))
+    #print("Accuracy: %.2f%%" % (accuracy * 100.0))
  
     #依据不同的阈值选取特征并训练模型
     thresholds = sort(xgb_grid.best_estimator_.feature_importances_)
@@ -46,12 +46,12 @@ def feature_eng(X_train_sparse, Y_train, X_valid_sparse,Y_valid,X_test_sparse):
         Y_valid_pred = s_xgb_grid.predict(X_valid_selected)
         predictions = [round(value) for value in Y_valid_pred]
         accuracy = accuracy_score(Y_valid, predictions)
-        print("iter=%d,Thresh=%.3f, num_feature=%d, Accuracy: %.2f%%" % (i,thresh, X_train_selected.shape[1], accuracy*100.0))
+        #print("iter=%d,Thresh=%.3f, num_feature=%d, Accuracy: %.2f%%" % (i,thresh, X_train_selected.shape[1], accuracy*100.0))
         if accuracy>max_accuracy:
            max_accuracy=accuracy
            best_thresh=thresh
            best_num_feature=X_train_selected.shape[1]
-    print("best Thresh=%.3f, best_num_feature=%d, best_accuracy: %.2f%%" % (best_thresh,best_num_feature, max_accuracy*100.0))
+    #print("best Thresh=%.3f, best_num_feature=%d, best_accuracy: %.2f%%" % (best_thresh,best_num_feature, max_accuracy*100.0))
     selection = SelectFromModel(xgb_grid.best_estimator_, threshold=best_thresh, prefit=True)
     X_train_sparse= sparse.csc_matrix(selection.transform(X_train_sparse.todense()))
     X_valid_sparse= sparse.csc_matrix(selection.transform(X_valid_sparse.todense()))

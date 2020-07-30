@@ -7,6 +7,7 @@ import pymysql
 import xgboost as xgb
 from sklearn.metrics import accuracy_score
 if __name__ =='__main__':
+    print("******推断程序开始******")
     db=pymysql.connect(
        host='47.93.50.246',
        user='root',
@@ -26,14 +27,15 @@ if __name__ =='__main__':
     #模型推断并写入结果
     Y_test_pred = cls.predict(X_test)
     predictions = [round(value) for value in Y_test_pred]
+    print("成功完成推断!")
 
     id=np.arange(0,len(predictions),1)
-    StackingSubmission = pd.DataFrame({'ID':id,'label': predictions,'time',time}) 
+    StackingSubmission = pd.DataFrame({'id':id,'label': predictions,'time':time}) 
     StackingSubmission.to_csv('/var/lib/mysql-files/testy.csv',index=False,sep=',') 
     cursor=db.cursor()
     cursor.execute('use EP2')
     cursor.execute(""" set sql_mode=""; """)
     cursor.execute(r""" load data infile '/var/lib/mysql-files/testy.csv' into table flow ; """) 
-
+    print("成功将推断结果写入数据库!")
     db.close()
     
