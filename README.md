@@ -1,1 +1,1 @@
-# Artificial URL analysis unit for offensive flow detection system
+# 基于XGBoost集成学习模型的在线流量分类模型
