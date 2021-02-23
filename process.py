@@ -42,7 +42,7 @@ def DecodeQuery2(fileName1,fileName2):
         time_list.append(item2)
     return query_list,time_list
 
-def readFile(db):
+def readFile():
     #读取训练集数据
     vectorizer =TfidfVectorizer(ngram_range=(1,3))
     bX1_d = DecodeQuery1('./data/网络攻击.csv')
@@ -59,15 +59,6 @@ def readFile(db):
     X_valid_sparse=sparse.csc_matrix(X_valid)
     
     #读取测试集数据
-    os.remove("/var/lib/mysql-files/testx.csv")
-    cursor=db.cursor()
-    cursor.execute('use EP2')
-    cursor.execute(r'''SELECT * FROM url INTO OUTFILE '/var/lib/mysql-files/testx.csv' FIELDS TERMINATED BY ',' ENCLOSED BY '"' LINES TERMINATED BY '\r\n' ''')
-    test_d=pd.read_csv('/var/lib/mysql-files/testx.csv')
-    url=test_d['url']
-    time=test_d['time']
-    url.to_csv('data/测试流量.csv',header=False,index=False)
-    time.to_csv('data/时间戳.csv',header=False,index=False)
     X_test_d,time=DecodeQuery2('data/测试流量.csv','data/时间戳.csv')
     X_test_sparse =vectorizer.transform(X_test_d)
     Y_train=np.array(Y_train.tolist()).flatten()
