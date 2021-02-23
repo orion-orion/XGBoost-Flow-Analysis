@@ -3,11 +3,11 @@
 
 
 ### 环境配置
-Python (3.6)
-numpy (1.19.5)
-pandas (1.1.5)
-scikit-learn (0.24.1)
-joblib (1.0.1)
+Python (3.6)  
+numpy (1.19.5)  
+pandas (1.1.5)  
+scikit-learn (0.24.1)  
+joblib (1.0.1)  
 
 
 
