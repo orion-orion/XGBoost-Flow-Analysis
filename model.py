@@ -19,9 +19,9 @@ def train(X_train_sparse,Y_train,X_valid_sparse,Y_valid,X_test_sparse):
     X_test = np.concatenate((Y_test_pred1,Y_test_pred2,Y_test_pred3,Y_test_pred4), axis=1)
    
     #Stacking第二层，使用XGBoost分类器
-    #cls = XGBClassifier( n_estimators= 10000, gamma=0.9, subsample=1,learning_rate=0.05, 
-    #                 colsample_bytree=0.6, objective= 'multi:softmaix class=3', nthread= -1).fit(X_train, Y_valid.ravel()) 
-    #joblib.dump(cls,"model/xgb.json")
+    cls = XGBClassifier( n_estimators= 10000, gamma=0.9, subsample=1,learning_rate=0.05, 
+                    colsample_bytree=0.6, objective= 'multi:softmaix class=3', nthread= -1).fit(X_train, Y_valid.ravel()) 
+    joblib.dump(cls,"model/xgb.json")
     cls=joblib.load("model/xgb.json")
  
     return  cls,X_test
@@ -52,10 +52,10 @@ def xgb_base(id,X_train_sparse,Y_train,X_valid_sparse,Y_valid,X_test_sparse):
     watchlist = [(xgtrain, 'train'),(xgval, 'val')]
 
     #开始训练
-    #cls = xgb.train(plst, xgtrain, num_rounds,watchlist,early_stopping_rounds=100)
+    cls = xgb.train(plst, xgtrain, num_rounds,watchlist,early_stopping_rounds=100)
 
 
-    #joblib.dump(cls,'model/xgb_base_'+str(id)+'.json')
+    joblib.dump(cls,'model/xgb_base_'+str(id)+'.json')
     cls=joblib.load('model/xgb_base_'+str(id)+'.json')
 
 
@@ -63,8 +63,8 @@ def xgb_base(id,X_train_sparse,Y_train,X_valid_sparse,Y_valid,X_test_sparse):
     Y_valid_pred = cls.predict(xgb.DMatrix(X_valid_sparse))
     Y_test_pred = cls.predict(xgb.DMatrix(X_test_sparse))
     predictions = [round(value) for value in Y_valid_pred]
-    #accuracy = accuracy_score(Y_valid, predictions)
-    #print("%d base_xgb: Accuracy: %.2f%%" % (id,accuracy * 100.0))
+    accuracy = accuracy_score(Y_valid, predictions)
+    print("%d base_xgb: Accuracy: %.2f%%" % (id,accuracy * 100.0))
     return Y_valid_pred.reshape(-1,1),Y_valid.reshape(-1,1),Y_test_pred.reshape(-1,1)
 '''
 #十折交叉验证
