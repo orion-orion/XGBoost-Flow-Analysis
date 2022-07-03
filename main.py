@@ -4,7 +4,7 @@ Version: 1.0
 Author: ZhangHongYu
 Date: 2022-07-03 15:09:10
 LastEditors: ZhangHongYu
-LastEditTime: 2022-07-03 16:50:38
+LastEditTime: 2022-07-03 19:17:49
 '''
 from process import readFile
 from feature import feature_eng
@@ -33,7 +33,7 @@ def parse_args():
         help="whether use the main model trained or retrain the main model"
         " possible are `load`,`ratrain`",
         type=str,
-        default='retrain'
+        default='load'
     )
 
     args = parser.parse_args()
