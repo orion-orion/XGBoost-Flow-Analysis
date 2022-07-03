@@ -9,13 +9,13 @@ from sklearn import model_selection
 from sklearn.metrics import accuracy_score
 import os
 
-model_save_direct = "model"
+model_root = "model"
 
 n_class = 3
 
 def train(X_train_sparse, Y_train, X_valid_sparse, Y_valid, X_test_sparse, mod):
-    if not os.path.exists(model_save_direct):
-        raise IOError("cant find the model directory: %s" % model_save_direct)
+    if not os.path.exists(model_root):
+        raise IOError("cant find the model directory: %s" % model_root)
     
     # 准备Stacking第一层的模型
     # 我们利用XGBoost，使用Stacking第一层中所有基分类器验证集的预测结果Y_valid_pred作为特征对最终的结果进行预测

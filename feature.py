@@ -12,11 +12,11 @@ from sklearn.model_selection import StratifiedKFold
 from sklearn.metrics import accuracy_score
 import os
 
-model_save_direct = "model"
+features_model_root = "features_model"
         
 def feature_eng(X_train_sparse, Y_train, X_valid_sparse, Y_valid, X_test_sparse, mod):
-    if not os.path.exists(model_save_direct):
-        raise IOError("cant find the model directory: %s" % model_save_direct)
+    if not os.path.exists(features_model_root):
+        raise IOError("cant find the model directory: %s" % features_model_root)
     
     # 初步训练模型，准备特征选择
     xgb_est = XGBClassifier(random_state=0)
@@ -29,9 +29,9 @@ def feature_eng(X_train_sparse, Y_train, X_valid_sparse, Y_valid, X_test_sparse,
     # 如果需要重新训练模型
     if mod == "retrain":
         xgb_grid.fit(X_train_sparse.todense()[:300], Y_train[:300])
-        joblib.dump(xgb_grid,os.path.join(model_save_direct, "feature_xgb_grid.json"))
+        joblib.dump(xgb_grid,os.path.join(features_model_root, "feature_xgb_grid.json"))
 
-    xgb_grid = joblib.load(os.path.join(model_save_direct, "feature_xgb_grid.json"))
+    xgb_grid = joblib.load(os.path.join(features_model_root, "feature_xgb_grid.json"))
     
     Y_valid_pred = xgb_grid.predict(X_valid_sparse.todense())
     predictions = [round(value) for value in Y_valid_pred]
@@ -59,9 +59,9 @@ def feature_eng(X_train_sparse, Y_train, X_valid_sparse, Y_valid, X_test_sparse,
         
         if mod == "retrain":
             s_xgb_grid.fit(X_train_selected[100:], Y_train[100:])
-            joblib.dump(s_xgb_grid,os.path.join(model_save_direct, "s_xgb%d_grid.json" % i))
+            joblib.dump(s_xgb_grid,os.path.join(features_model_root, "s_xgb%d_grid.json" % i))
 
-        s_xgb_grid = joblib.load(os.path.join(model_save_direct, "s_xgb%d_grid.json" % i))
+        s_xgb_grid = joblib.load(os.path.join(features_model_root, "s_xgb%d_grid.json" % i))
 
         Y_valid_pred = s_xgb_grid.predict(X_valid_selected)
         predictions = [round(value) for value in Y_valid_pred]
