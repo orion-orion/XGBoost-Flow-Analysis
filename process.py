@@ -4,15 +4,13 @@ Version: 1.0
 Author: ZhangHongYu
 Date: 2022-07-03 15:09:10
 LastEditors: ZhangHongYu
-LastEditTime: 2022-07-03 16:02:57
+LastEditTime: 2022-07-03 19:47:04
 '''
-import pandas as pd
 from sklearn.feature_extraction.text import TfidfVectorizer
 import html
 import re
 from urllib import parse
 import numpy as np
-import pymysql
 import os
 import numpy as np
 from scipy import sparse

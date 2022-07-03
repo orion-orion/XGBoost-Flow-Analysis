@@ -1,11 +1,8 @@
 from __future__ import division
 import numpy as np
 import joblib
-from sklearn.model_selection import KFold
 from xgboost import XGBClassifier
 import xgboost as xgb
-import matplotlib.pyplot as plt
-from sklearn import model_selection
 from sklearn.metrics import accuracy_score
 import os
 
@@ -88,7 +85,7 @@ def xgb_base(id, X_train_sparse, Y_train, X_valid_sparse, Y_valid, X_test_sparse
     return Y_valid_pred.reshape(-1, 1), Y_valid.reshape(-1, 1), Y_test_pred.reshape(-1, 1)
 
 
-'''
+
 #十折交叉验证
 def get_out_fold(clf_name,clf, x_train, y_train, x_test, ntrain, ntest, NFOLDS, kf):
     oof_trainy_hat=np.zeros((ntrain,1))
@@ -120,4 +117,4 @@ def get_out_fold(clf_name,clf, x_train, y_train, x_test, ntrain, ntest, NFOLDS, 
     #print("{} 测试集精度:{:.5f}".format(clf_name,dts_test*100))
     oof_test[:] = oof_test_skf.mean(axis=0)#取所有次迭代的平均值
     return oof_trainy_hat.reshape(-1, 1), oof_test.reshape(-1, 1)
-'''
+
