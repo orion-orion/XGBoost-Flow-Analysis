@@ -7,7 +7,7 @@ __pycache__/
 *.so
 
 # Debug logs
-*.txt
+log.txt
 
 # Plot results
 *.png
