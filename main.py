@@ -4,7 +4,7 @@ Version: 1.0
 Author: ZhangHongYu
 Date: 2022-07-03 15:09:10
 LastEditors: ZhangHongYu
-LastEditTime: 2022-07-03 15:33:13
+LastEditTime: 2022-07-03 16:50:38
 '''
 from process import readFile
 from feature import feature_eng
@@ -12,7 +12,7 @@ from model import train
 import pandas as pd
 import numpy as np
 import argparse
-
+import os
 
 def parse_args():
     """parse the command line args
@@ -39,6 +39,7 @@ def parse_args():
     args = parser.parse_args()
     return args
 
+prediction_direct = "prediction"
 
 if __name__ == '__main__':
     args = parse_args()
@@ -62,4 +63,4 @@ if __name__ == '__main__':
     id = np.arange(0, len(predictions), 1)
     StackingSubmission = pd.DataFrame(
         {'id': id, 'label': predictions, 'time': time})
-    StackingSubmission.to_csv('data/testy.csv', index=False, sep=',')
+    StackingSubmission.to_csv(os.path.join(prediction_direct, "testy.csv"), index=False, sep=',')
