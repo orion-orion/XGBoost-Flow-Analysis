@@ -36,7 +36,7 @@ def feature_eng(X_train_sparse, Y_train, X_valid_sparse, Y_valid, X_test_sparse,
     Y_valid_pred = xgb_grid.predict(X_valid_sparse.todense())
     predictions = [round(value) for value in Y_valid_pred]
     accuracy = accuracy_score(Y_valid, predictions)
-    #print("Accuracy: %.2f%%" % (accuracy * 100.0))
+    print("Accuracy: %.2f%%" % (accuracy * 100.0))
 
     # 依据不同的阈值选取特征并训练模型
     thresholds = sort(xgb_grid.best_estimator_.feature_importances_)
